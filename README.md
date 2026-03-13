@@ -25,10 +25,18 @@ This skill guides AI agents through the complete GeoParquet workflow:
 /plugin install geoparquet@geoparquet-skill
 ```
 
-Or install directly without adding the marketplace:
+### Claude Cowork
 
+**Via UI:**
+1. Open Cowork → Click **Plugins** in the sidebar
+2. Click **"+"** to add a new marketplace
+3. Enter: `geoparquet-io/geoparquet-skill`
+4. Select the **geoparquet** plugin and click **Add plugin**
+
+**Via CLI:**
 ```bash
-/plugin install geoparquet --source github:geoparquet-io/geoparquet-skill
+claude plugin marketplace add geoparquet-io/geoparquet-skill
+claude plugin install geoparquet@geoparquet-skill
 ```
 
 ### OpenSkills (works with Cursor, Codex, Aider, etc.)
@@ -39,17 +47,22 @@ npx openskills install geoparquet-io/geoparquet-skill
 
 ### Manual Installation
 
-Copy `skills/geoparquet/SKILL.md` to your `~/.claude/skills/geoparquet/` directory.
+Copy the `skills/geoparquet/` directory to `~/.claude/skills/geoparquet/`.
 
 ## Prerequisites
 
 Install the `gpio` CLI tool:
 
 ```bash
-pip install geoparquet-io
-# or
-uv pip install geoparquet-io
+# Isolated install (recommended)
+pipx install --pre geoparquet-io
+
+# Or with pip/uv
+pip install --pre geoparquet-io
+uv pip install --pre geoparquet-io
 ```
+
+Note: Use `--pre` to get the latest beta releases (1.0 is not yet released).
 
 Verify installation:
 

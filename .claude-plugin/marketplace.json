@@ -5,15 +5,15 @@
   },
   "metadata": {
     "description": "GeoParquet skills for Claude Code and other AI agents",
-    "version": "1.0.0"
+    "version": "1.1.0"
   },
   "plugins": [
     {
       "name": "geoparquet",
       "source": "./",
-      "description": "Convert spatial data (GeoJSON, Shapefile, etc.) to optimized GeoParquet using the gpio CLI. Analyzes files, recommends settings, and publishes to cloud storage.",
-      "version": "1.0.0",
-      "keywords": ["geoparquet", "geospatial", "parquet", "gis", "spatial-data"]
+      "description": "Work with GeoParquet files - the cloud-native format for geospatial vector data. Covers best practices for creating, optimizing, and distributing GeoParquet using gpio CLI and DuckDB.",
+      "version": "1.1.0",
+      "keywords": ["geoparquet", "geospatial", "parquet", "gis", "spatial-data", "gpio", "duckdb", "cloud-native"]
     }
   ]
 }

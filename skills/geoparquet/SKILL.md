@@ -114,15 +114,17 @@ gpio publish stac ./partitioned/ ./partitioned/ --collection-id "my-dataset"
 **Installation:**
 ```bash
 # Isolated install (recommended)
-pipx install geoparquet-io
+pipx install --pre geoparquet-io
 
 # Or with pip/uv
-pip install geoparquet-io
-uv pip install geoparquet-io
+pip install --pre geoparquet-io
+uv pip install --pre geoparquet-io
 
 # Verify
 gpio --version
 ```
+
+Note: Use `--pre` to get the latest beta releases (1.0 is not yet released).
 
 If gpio is not installed, help the user install it before proceeding.
 
@@ -141,7 +143,14 @@ If gpio is not installed, help the user install it before proceeding.
 
 ### DuckDB - For Advanced Operations
 
-Use DuckDB when gpio doesn't support a specific operation (complex SQL, joins, aggregations, geometry operations). **Always apply best practices manually:**
+Use DuckDB when gpio doesn't support a specific operation (complex SQL, joins, aggregations, geometry operations). **Requires DuckDB 1.5+ for projection/CRS operations.**
+
+```bash
+# Install DuckDB 1.5+
+pip install "duckdb>=1.5"
+```
+
+**Always apply best practices manually:**
 
 ```sql
 -- Load spatial extension
@@ -172,12 +181,17 @@ COPY (
 | Task | Use |
 |------|-----|
 | Convert formats to GeoParquet | gpio |
+| Extract subsets from large remote files | gpio |
+| Extract from BigQuery | gpio |
+| Extract from ArcGIS Feature Services | gpio |
+| Add spatial indices (H3, S2, quadkey) | gpio |
+| Add administrative boundaries | gpio |
 | Validate GeoParquet files | gpio |
 | Partition large datasets | gpio |
 | Generate STAC metadata | gpio |
 | Upload to cloud storage | gpio |
 | Complex SQL/joins/aggregations | DuckDB |
-| Geometry operations (buffer, union) | DuckDB |
+| Geometry operations (buffer, union, reproject) | DuckDB (1.5+) |
 | Reading for analysis | DuckDB or GeoPandas |
 
 ---
@@ -238,21 +252,98 @@ gpio convert geojson <input> <output>
 gpio convert reproject <input> <output> --target-crs EPSG:4326
 ```
 
-### Data Extraction
+### Data Extraction & Subsetting
+
+Efficiently extract subsets from GeoParquet files, including large remote files (S3, HTTPS). Uses bbox metadata for fast spatial filtering.
 
 ```bash
-# Extract by bounding box
-gpio extract <input> <output> --bbox "minx,miny,maxx,maxy"
+# Extract by bounding box (uses bbox column for fast filtering)
+gpio extract data.parquet output.parquet --bbox "-122.5,37.5,-122.0,38.0"
 
-# Extract columns
-gpio extract <input> <output> --columns "id,name,geometry"
+# Extract by geometry (GeoJSON, WKT, or file)
+gpio extract data.parquet output.parquet --geometry @boundary.geojson
+gpio extract data.parquet output.parquet --geometry "POLYGON((...)))"
+
+# Select specific columns
+gpio extract data.parquet output.parquet --include-cols "id,name,area"
+
+# Exclude columns
+gpio extract data.parquet output.parquet --exclude-cols "internal_id,temp"
 
 # SQL WHERE filter
-gpio extract <input> <output> --where "population > 10000"
+gpio extract data.parquet output.parquet --where "population > 10000"
 
 # Limit rows
-gpio extract <input> <output> --limit 1000
+gpio extract data.parquet output.parquet --limit 1000
+
+# Combine filters
+gpio extract data.parquet output.parquet \
+    --bbox "-122.5,37.5,-122.0,38.0" \
+    --include-cols "id,name" \
+    --where "status = 'active'" \
+    --limit 5000
+
+# Merge multiple files with glob pattern
+gpio extract "data/*.parquet" merged.parquet
+
+# Extract from remote files (efficient - only downloads needed data)
+gpio extract s3://bucket/large-file.parquet local.parquet \
+    --bbox "-122.5,37.5,-122.0,38.0" \
+    --aws-profile my-profile
+
+gpio extract https://data.source.coop/file.parquet local.parquet \
+    --bbox "-122.5,37.5,-122.0,38.0"
 ```
+
+### Extract from BigQuery
+
+Extract spatial data from BigQuery tables to optimized GeoParquet. GEOGRAPHY columns are automatically converted.
+
+```bash
+# Extract entire table
+gpio extract bigquery myproject.geodata.buildings output.parquet
+
+# With filtering (pushed to BigQuery for efficiency)
+gpio extract bigquery myproject.geodata.buildings output.parquet \
+    --where "area > 1000" \
+    --bbox "-122.5,37.5,-122.0,38.0" \
+    --limit 10000
+
+# Select specific columns
+gpio extract bigquery myproject.geodata.buildings output.parquet \
+    --include-cols "id,name,geography"
+
+# Using service account
+gpio extract bigquery myproject.geodata.buildings output.parquet \
+    --credentials-file /path/to/service-account.json
+```
+
+**Authentication:** Uses gcloud auth, GOOGLE_APPLICATION_CREDENTIALS, or --credentials-file.
+
+### Extract from ArcGIS Feature Services
+
+Download features from ArcGIS REST services to optimized GeoParquet.
+
+```bash
+# Public service (no auth)
+gpio extract arcgis https://services.arcgis.com/.../FeatureServer/0 output.parquet
+
+# With server-side filtering (efficient - reduces download)
+gpio extract arcgis https://services.arcgis.com/.../FeatureServer/0 output.parquet \
+    --bbox "-122.5,37.5,-122.0,38.0" \
+    --where "state='CA'" \
+    --include-cols "name,population" \
+    --limit 1000
+
+# With authentication
+gpio extract arcgis https://services.arcgis.com/.../FeatureServer/0 output.parquet \
+    --token "your-token"
+
+gpio extract arcgis https://services.arcgis.com/.../FeatureServer/0 output.parquet \
+    --username user --password pass
+```
+
+**Note:** Filters are pushed to the server for efficiency. Output includes Hilbert sorting and bbox metadata by default.
 
 ### Sorting
 
@@ -267,19 +358,50 @@ gpio sort column <input> <output> --column "timestamp"
 gpio sort quadkey <input> <output>
 ```
 
-### Adding Columns
+### Adding Columns & Spatial Indices
+
+Enrich GeoParquet with spatial indices, administrative boundaries, and bbox metadata.
 
 ```bash
-# Add bbox column
+# Bbox column + covering metadata
 gpio add bbox <input> <output>
+gpio add bbox-metadata <file>  # Add metadata to existing bbox
 
-# Add covering metadata to existing bbox
-gpio add bbox-metadata <file>
-
-# Add spatial index columns
-gpio add quadkey <input> <output> --resolution 12
+# H3 hexagonal cells (resolution 0-15, default 9)
+# Res 7: ~5km², Res 9: ~105m², Res 11: ~2m²
 gpio add h3 <input> <output> --resolution 9
+
+# S2 spherical cells (level 0-30, default 13)
+# Level 8: ~1,250km², Level 13: ~1.2km², Level 18: ~1,200m²
+gpio add s2 <input> <output> --level 13
+
+# Quadkey (Bing Maps tiles)
+gpio add quadkey <input> <output> --resolution 12
+
+# A5 cells
+gpio add a5 <input> <output>
+
+# KD-tree cell IDs (for balanced partitioning)
+gpio add kdtree <input> <output>
+
+# Administrative divisions via spatial join
+# GAUL dataset: adds gaul_continent, gaul_country, gaul_department
+gpio add admin-divisions <input> <output> --dataset gaul
+
+# Overture Maps: adds overture_country, overture_region
+gpio add admin-divisions <input> <output> --dataset overture
+
+# Select specific levels
+gpio add admin-divisions <input> <output> --dataset gaul --levels "continent,country"
+
+# Custom column prefix
+gpio add admin-divisions <input> <output> --dataset gaul --prefix "admin"
 ```
+
+**Admin divisions notes:**
+- Datasets are cached locally after first download (~5-50MB)
+- Input data must be in WGS84 or compatible CRS
+- Use `--clear-cache` to refresh cached datasets
 
 ### Partitioning
 
@@ -328,7 +450,8 @@ When a user provides spatial data:
 
 ### 1. Understand the Source
 - What format? (GeoJSON, Shapefile, FlatGeobuf, GeoPackage, CSV, Parquet)
-- Local file or URL?
+- Local file, URL, cloud storage (S3/GCS/Azure)?
+- External service? (BigQuery table, ArcGIS Feature Service)
 - How large? (rows and MB)
 
 ### 2. Explore the Data

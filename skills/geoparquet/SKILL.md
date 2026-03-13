@@ -133,20 +133,23 @@ If gpio is not installed, help the user install it before proceeding.
 | Feature | gpio | GDAL/ogr2ogr (3.9+) | GeoPandas |
 |---------|------|---------------------|-----------|
 | GeoParquet 1.1 spec | Full | Full | Partial |
-| Spatial sorting | Hilbert (optimal) | SORT_BY_BBOX | No |
+| Spatial sorting | Hilbert (fast) | SORT_BY_BBOX (slow*) | Hilbert (manual) |
 | bbox + covering metadata | Automatic | WRITE_COVERING_BBOX option | Manual |
-| zstd compression | Default | Supported (option) | No |
-| Row group optimization | Automatic | ROW_GROUP_SIZE option | Manual |
+| zstd compression | Default | Supported (option) | Supported (option) |
+| Row group optimization | Automatic | ROW_GROUP_SIZE option | Supported (option) |
 | Validation | `gpio check` | No | No |
 | Partitioning | Built-in | No | Manual |
 | STAC generation | Built-in | No | No |
 | BigQuery/ArcGIS extraction | Built-in | No | No |
-| Best practices by default | Yes | Requires explicit options | No |
+| Best practices by default | Yes | Requires explicit options | Requires explicit options |
+
+*GDAL's SORT_BY_BBOX requires temporary conversion to GeoPackage, making it slower than gpio's native Hilbert sort.
 
 **Key differences:**
-- **Hilbert vs SORT_BY_BBOX**: Hilbert curves provide optimal spatial clustering; SORT_BY_BBOX is simpler but less effective
-- **Defaults**: gpio applies best practices automatically; GDAL requires explicit options like `-lco SORT_BY_BBOX=YES -lco WRITE_COVERING_BBOX=YES -lco COMPRESSION=ZSTD`
-- **GDAL is excellent** for format conversion and has broad format support; use it when gpio doesn't support your input format
+- **Speed**: gpio's Hilbert sorting is native and fast; GDAL's SORT_BY_BBOX converts to GeoPackage first
+- **Defaults**: gpio applies best practices automatically; GDAL/GeoPandas require explicit options
+- **GDAL is excellent** for format conversion with broad format support; use it when gpio doesn't support your input format
+- **GeoPandas is great** for analysis workflows; just set compression/sorting options when writing final output
 
 ### DuckDB - For Advanced Operations
 

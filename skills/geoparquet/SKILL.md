@@ -130,16 +130,23 @@ If gpio is not installed, help the user install it before proceeding.
 
 **Why gpio over alternatives:**
 
-| Feature | gpio | GeoPandas | GDAL/ogr2ogr |
-|---------|------|-----------|--------------|
-| GeoParquet 1.1 spec | Full | Partial | Partial |
-| Hilbert sorting | Default | No | No |
-| bbox + covering metadata | Automatic | Manual | No |
-| zstd compression | Default | No | No |
-| Row group optimization | Automatic | Manual | No |
+| Feature | gpio | GDAL/ogr2ogr (3.9+) | GeoPandas |
+|---------|------|---------------------|-----------|
+| GeoParquet 1.1 spec | Full | Full | Partial |
+| Spatial sorting | Hilbert (optimal) | SORT_BY_BBOX | No |
+| bbox + covering metadata | Automatic | WRITE_COVERING_BBOX option | Manual |
+| zstd compression | Default | Supported (option) | No |
+| Row group optimization | Automatic | ROW_GROUP_SIZE option | Manual |
 | Validation | `gpio check` | No | No |
-| Partitioning | Built-in | Manual | No |
+| Partitioning | Built-in | No | Manual |
 | STAC generation | Built-in | No | No |
+| BigQuery/ArcGIS extraction | Built-in | No | No |
+| Best practices by default | Yes | Requires explicit options | No |
+
+**Key differences:**
+- **Hilbert vs SORT_BY_BBOX**: Hilbert curves provide optimal spatial clustering; SORT_BY_BBOX is simpler but less effective
+- **Defaults**: gpio applies best practices automatically; GDAL requires explicit options like `-lco SORT_BY_BBOX=YES -lco WRITE_COVERING_BBOX=YES -lco COMPRESSION=ZSTD`
+- **GDAL is excellent** for format conversion and has broad format support; use it when gpio doesn't support your input format
 
 ### DuckDB - For Advanced Operations
 

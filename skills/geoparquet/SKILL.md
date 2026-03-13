@@ -190,6 +190,7 @@ COPY (
 | Partition large datasets | gpio |
 | Generate STAC metadata | gpio |
 | Upload to cloud storage | gpio |
+| Convert to PMTiles | gpio-pmtiles or tippecanoe |
 | Complex SQL/joins/aggregations | DuckDB |
 | Geometry operations (buffer, union, reproject) | DuckDB (1.5+) |
 | Reading for analysis | DuckDB or GeoPandas |
@@ -441,6 +442,46 @@ gpio inspect https://example.com/data.parquet
 # Private S3 with profile
 gpio inspect s3://bucket/file.parquet --profile my-profile
 ```
+
+### Convert to PMTiles (Vector Tiles)
+
+Generate PMTiles for web map display using the gpio-pmtiles plugin.
+
+**Installation:**
+```bash
+# If gpio installed via pipx
+pipx inject geoparquet-io gpio-pmtiles
+
+# Or with pip
+pip install gpio-pmtiles
+```
+
+**Usage:**
+```bash
+# Basic conversion
+gpio pmtiles create buildings.parquet buildings.pmtiles
+
+# With filtering (applied before tile generation)
+gpio pmtiles create data.parquet tiles.pmtiles \
+    --bbox "-122.5,37.5,-122.0,38.0" \
+    --where "population > 10000"
+```
+
+**Alternative: Pipe through tippecanoe:**
+```bash
+# Stream GeoJSON to tippecanoe (no intermediate files)
+gpio convert geojson buildings.parquet | tippecanoe -P -o buildings.pmtiles
+
+# With filtering and reduced precision for smaller output
+gpio extract large.parquet --bbox "-122.5,37.5,-122,38" | \
+    gpio convert geojson - --precision 5 | \
+    tippecanoe -P -o output.pmtiles
+```
+
+**Tips:**
+- Filter data first with `gpio extract` to reduce processing time
+- Use `--precision 5` or `6` for smaller GeoJSON output
+- The `-P` flag enables tippecanoe's parallel processing mode
 
 ---
 

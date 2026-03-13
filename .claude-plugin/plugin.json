@@ -1,0 +1,12 @@
+{
+  "name": "geoparquet",
+  "description": "Convert spatial data (GeoJSON, Shapefile, etc.) to optimized GeoParquet using the gpio CLI. Analyzes files, recommends settings, and publishes to cloud storage.",
+  "version": "1.0.0",
+  "author": {
+    "name": "GeoParquet.io"
+  },
+  "homepage": "https://github.com/geoparquet-io/geoparquet-skill",
+  "repository": "https://github.com/geoparquet-io/geoparquet-skill",
+  "license": "Apache-2.0",
+  "keywords": ["geoparquet", "geospatial", "parquet", "gis", "spatial-data", "gpio"]
+}
